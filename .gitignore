@@ -1,0 +1,32 @@
+# Ficheiros de ambiente
+# Ignora o ficheiro que contém as chaves de API e outras informações sensíveis.
+.env
+
+# Ficheiros e pastas do Python
+# Ignora as pastas de ambiente virtual
+venv/
+*.venv/
+env/
+
+# Ignora a cache do Python
+__pycache__/
+*.pyc
+
+# Ficheiros de dependências do Poetry
+poetry.lock
+.pdm.toml
+
+# Ficheiros de IDEs
+.vscode/
+.idea/
+
+# Ficheiros do sistema operativo
+.DS_Store
+Thumbs.db
+
+# Ficheiros gerados pela aplicação
+# Ignora a pasta com os documentos gerados
+output/
+
+# Ignora a base de dados de vetores em cache
+vector_store.pkl

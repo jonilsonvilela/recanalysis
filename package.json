@@ -1,0 +1,16 @@
+{
+  "name": "recanalysis-backend-runner",
+  "version": "1.0.0",
+  "description": "Scripts para iniciar os serviços de backend do recANALYSIS de forma concorrente.",
+  "main": "index.js",
+  "scripts": {
+    "api": "uvicorn main:app --reload --port 8000",
+    "generator": "uvicorn generator_service:app --reload --port 8001",
+    "start": "concurrently \"npm:api\" \"npm:generator\""
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
