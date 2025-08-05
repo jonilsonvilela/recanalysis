@@ -10,10 +10,11 @@ import os
 import pickle
 import sqlite3
 import datetime
+import requests
+from functools import partial
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from dotenv import load_dotenv
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -72,7 +73,7 @@ GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemin
 POLICY_DOC_PATH = "Política Recursal.pdf"
 VECTOR_STORE_PATH = "vector_store.pkl"
 EMBEDDING_MODEL = "rufimelo/Legal-BERTimbau-sts-large"
-GENERATOR_SERVICE_URL = "http://127.0.0.1:8001"
+GENERATOR_SERVICE_URL = "http://generator:8001"
 
 # --- "Banco de Dados" em Memória para Jobs ---
 jobs: Dict[str, Dict[str, Any]] = {}
@@ -158,10 +159,17 @@ async def generate_documents(request: GenerationRequest):
     # --- Fim da Lógica de Feedback ---
 
     payload = {"form_type": job["form_type"], "form_data": request.form_data}
+
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            response = await client.post(f"{GENERATOR_SERVICE_URL}/api/v1/generate-document", json=payload)
-            response.raise_for_status()
+        # Cria uma função parcial para a chamada de rede
+        blocking_request = partial(requests.post, f"{GENERATOR_SERVICE_URL}/api/v1/generate-document", json=payload, timeout=90.0)
+
+        # Executa a chamada de rede numa thread separada para não bloquear o loop asyncio
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, blocking_request)
+
+        response.raise_for_status() # Lança um erro para respostas >= 400
+
         result = response.json()
         base_download_url = f"{GENERATOR_SERVICE_URL}/download"
         return {
@@ -169,10 +177,12 @@ async def generate_documents(request: GenerationRequest):
             "docx_url": f"{base_download_url}/{result['docx_filename']}",
             "pdf_url": f"{base_download_url}/{result['pdf_filename']}"
         }
-    except httpx.RequestError as e:
+    except requests.exceptions.RequestException as e:
+        # Captura erros de rede do 'requests' (ex: falha de conexão, timeout)
         raise HTTPException(status_code=503, detail=f"Não foi possível conectar ao serviço de geração de documentos: {e}")
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=f"Erro do serviço de geração de documentos: {e.response.text}")
+    except Exception as e:
+        # Captura outros erros, incluindo os de 'raise_for_status'
+         raise HTTPException(status_code=500, detail=f"Erro do serviço de geração de documentos: {str(e)}")
 
 # --- Lógica de Processamento de IA com RAG (Esquema v2.0 - Sem alterações) ---
 def get_form_fields_for_schema(form_type: str) -> Dict[str, Any]:

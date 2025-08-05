@@ -4,8 +4,8 @@ python-multipart
 PyMuPDF
 httpx
 python-dotenv
-langchain
 sentence-transformers
 faiss-cpu
 docxtpl
 langchain-community
+requests
