@@ -1,0 +1,27 @@
+# Ignorar o ambiente virtual do Python
+venv/
+*.venv/
+env/
+
+# Ignorar a cache do Python
+__pycache__/
+*.pyc
+
+# Ignorar ficheiros e pastas do Git
+.git/
+.gitignore
+
+# Ignorar ficheiros de IDEs
+.vscode/
+.idea/
+
+# Ignorar ficheiros do sistema operativo
+.DS_Store
+Thumbs.db
+
+# Ignorar a base de dados de vetores em cache e de feedback
+vector_store.pkl
+feedback.db
+
+# Ignorar dependências do Node
+node_modules/

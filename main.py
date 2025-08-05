@@ -1,10 +1,5 @@
 # main.py
-# Para rodar este servidor:
-# 1. Instale as dependências: pip install fastapi "uvicorn[standard]" python-multipart "PyMuPDF" httpx python-dotenv langchain sentence-transformers faiss-cpu docxtpl
-# 2. Crie um arquivo .env na mesma pasta e adicione sua chave da API: GEMINI_API_KEY=SUA_CHAVE_AQUI
-# 3. Coloque o arquivo "Política Recursal.pdf" na mesma pasta do main.py
-# 4. Execute o serviço de geração de documentos (generator_service.py) em paralelo.
-# 5. Execute no seu terminal: uvicorn main:app --reload
+# Versão 1.7 - Com Sistema de Feedback e Base de Dados SQLite
 
 import asyncio
 import uuid
@@ -13,10 +8,12 @@ import httpx
 import json
 import os
 import pickle
+import sqlite3
+import datetime
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Dict, Any, List
+from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -24,15 +21,41 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.docstore.document import Document
 
-# --- Carregar variáveis de ambiente e configurar o ambiente ---
+# --- Carregar variáveis de ambiente ---
 load_dotenv()
+
+# --- Configuração da Base de Dados de Feedback ---
+DB_FILE = "feedback.db"
+
+def init_db():
+    """Cria a tabela de feedback na base de dados se ela não existir."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        form_type TEXT NOT NULL,
+        original_response TEXT NOT NULL,
+        corrected_response TEXT NOT NULL
+    )
+    """)
+    conn.commit()
+    conn.close()
+    print(f"Base de dados de feedback '{DB_FILE}' inicializada com sucesso.")
 
 # --- Inicialização da Aplicação FastAPI ---
 app = FastAPI(
     title="recANALYSIS API",
-    description="O cérebro por trás do assistente de análise de decisões judiciais, agora com RAG e Geração de Documentos.",
-    version="1.6.0"
+    description="O cérebro por trás do assistente de análise de decisões judiciais, agora com sistema de feedback.",
+    version="1.7.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Função executada quando a aplicação inicia."""
+    init_db()
+
 
 # --- Configuração de CORS ---
 app.add_middleware(
@@ -49,32 +72,26 @@ GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemin
 POLICY_DOC_PATH = "Política Recursal.pdf"
 VECTOR_STORE_PATH = "vector_store.pkl"
 EMBEDDING_MODEL = "rufimelo/Legal-BERTimbau-sts-large"
-GENERATOR_SERVICE_URL = "http://127.0.0.1:8001" # URL do serviço de geração
+GENERATOR_SERVICE_URL = "http://127.0.0.1:8001"
 
-# --- "Banco de Dados" em Memória ---
+# --- "Banco de Dados" em Memória para Jobs ---
 jobs: Dict[str, Dict[str, Any]] = {}
 
-# --- Lógica de RAG (Retrieval-Augmented Generation) ---
+# --- Lógica de RAG ---
 def get_vector_store():
     if os.path.exists(VECTOR_STORE_PATH):
-        with open(VECTOR_STORE_PATH, "rb") as f:
-            return pickle.load(f)
-    
+        with open(VECTOR_STORE_PATH, "rb") as f: return pickle.load(f)
     with fitz.open(POLICY_DOC_PATH) as doc:
         policy_text = "".join(page.get_text() for page in doc)
-    
     docs = [Document(page_content=policy_text)]
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     chunks = text_splitter.split_documents(docs)
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
     vector_store = FAISS.from_documents(chunks, embedding=embeddings)
-
-    with open(VECTOR_STORE_PATH, "wb") as f:
-        pickle.dump(vector_store, f)
+    with open(VECTOR_STORE_PATH, "wb") as f: pickle.dump(vector_store, f)
     return vector_store
 
 vector_store = get_vector_store()
-
 
 # --- Modelos de Dados (Pydantic) ---
 class Job(BaseModel):
@@ -85,29 +102,23 @@ class Job(BaseModel):
 class GenerationRequest(BaseModel):
     job_id: str
     form_data: Dict[str, Any]
+    original_data: Dict[str, Any] # Novo campo para o feedback
 
 # --- Endpoints da API ---
 
 @app.get("/")
 def read_root():
-    return {"message": "Bem-vindo à API do recANALYSIS v1.6!"}
+    return {"message": "Bem-vindo à API do recANALYSIS v1.7!"}
 
 @app.post("/api/v1/analysis", status_code=202)
-async def start_analysis(
-    file: UploadFile = File(...),
-    form_type: str = Form(...)
-):
+async def start_analysis(file: UploadFile = File(...), form_type: str = Form(...)):
     if not file.content_type == "application/pdf":
         raise HTTPException(status_code=400, detail="Tipo de arquivo inválido.")
-
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "processing", "data": None, "form_type": form_type}
-    
     file_content = await file.read()
     asyncio.create_task(rag_ai_processing(job_id, form_type, file_content, vector_store))
-
     return {"job_id": job_id}
-
 
 @app.get("/api/v1/analysis/{job_id}/status", response_model=Job)
 def get_analysis_status(job_id: str):
@@ -116,23 +127,41 @@ def get_analysis_status(job_id: str):
         raise HTTPException(status_code=404, detail="Trabalho não encontrado.")
     return {"job_id": job_id, "status": job["status"], "data": job["data"]}
 
-
 @app.post("/api/v1/generate")
 async def generate_documents(request: GenerationRequest):
     job = jobs.get(request.job_id)
     if not job or job["status"] != "ready":
         raise HTTPException(status_code=400, detail="O trabalho não está pronto para geração.")
 
-    payload = {
-        "form_type": job["form_type"],
-        "form_data": request.form_data
-    }
+    # --- Lógica de Feedback ---
+    if request.original_data != request.form_data:
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO feedback (timestamp, form_type, original_response, corrected_response)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    datetime.datetime.now().isoformat(),
+                    job["form_type"],
+                    json.dumps(request.original_data),
+                    json.dumps(request.form_data)
+                )
+            )
+            conn.commit()
+            conn.close()
+            print("Correção do utilizador guardada na base de dados de feedback.")
+        except Exception as e:
+            print(f"ERRO ao guardar feedback na base de dados: {e}")
+    # --- Fim da Lógica de Feedback ---
 
+    payload = {"form_type": job["form_type"], "form_data": request.form_data}
     try:
         async with httpx.AsyncClient(timeout=90.0) as client:
             response = await client.post(f"{GENERATOR_SERVICE_URL}/api/v1/generate-document", json=payload)
             response.raise_for_status()
-        
         result = response.json()
         base_download_url = f"{GENERATOR_SERVICE_URL}/download"
         return {
@@ -145,12 +174,8 @@ async def generate_documents(request: GenerationRequest):
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=f"Erro do serviço de geração de documentos: {e.response.text}")
 
-
-# --- Lógica de Processamento de IA com RAG (Esquema v2.0) ---
+# --- Lógica de Processamento de IA com RAG (Esquema v2.0 - Sem alterações) ---
 def get_form_fields_for_schema(form_type: str) -> Dict[str, Any]:
-    """ Retorna o esquema de propriedades JSON v2.0 para um tipo de formulário. """
-    
-    # Bloco comum a todos os formulários
     schema_comum = {
         "data_publicacao": {"type": "STRING"}, "prazo_fatal": {"type": "STRING"},
         "npj": {"type": "STRING"}, "contrato_lide": {"type": "STRING"},
@@ -168,10 +193,7 @@ def get_form_fields_for_schema(form_type: str) -> Dict[str, Any]:
         "documentos_anexados_check": {"type": "STRING", "description": "Responder 'Sim' ou 'Não'."},
         "escritorio_advogado_contato": {"type": "STRING", "description": "Nome do Escritório, UF, Advogado, OAB, e-mail e telefone."},
     }
-
-    # Esquema final
     schema = {}
-
     if form_type == 'autodispensa':
         schema.update(schema_comum)
         schema.update({
@@ -183,7 +205,6 @@ def get_form_fields_for_schema(form_type: str) -> Dict[str, Any]:
             "fundamentacao_relatorio": {"type": "STRING", "description": "Breve relato com pleitos da inicial e teor das decisões."},
             "parecer_fundamentado_autodispensa": {"type": "STRING", "description": "Parecer jurídico elaborado que ampara a autodispensa, enquadrando o caso no item do Manual."},
         })
-    
     elif form_type in ['dispensa', 'autorizacao']:
         schema.update(schema_comum)
         schema.update({
@@ -202,7 +223,6 @@ def get_form_fields_for_schema(form_type: str) -> Dict[str, Any]:
             schema['fundamentacao_dispensa'] = {"type": "STRING", "description": "Citar as circunstâncias peculiares da demanda que não recomendam a interposição do recurso."}
         else: # autorizacao
             schema['fundamentacao_autorizacao'] = {"type": "STRING", "description": "Expor os motivos para interpor o recurso, especialmente se for matéria de autodispensa, e demonstrar prequestionamento e repercussão geral se aplicável."}
-
     return schema
 
 def build_rag_prompt_text(decision_text: str, relevant_policy_docs: List[Document]) -> str:
@@ -210,17 +230,14 @@ def build_rag_prompt_text(decision_text: str, relevant_policy_docs: List[Documen
     return f"""
     Você é um assistente jurídico especialista em análise de decisões judiciais brasileiras.
     Sua tarefa é extrair informações detalhadas de um documento judicial e preencher todos os campos de um formulário, usando a Política Recursal interna como principal fonte para a fundamentação.
-
     **CONTEXTO DA POLÍTICA RECURSAL (Use para fundamentar as suas respostas):**
     ---
     {policy_context}
     ---
-
     **DECISÃO JUDICIAL PARA ANÁLISE:**
     ---
     {decision_text[:14000]}
     ---
-
     **TAREFA:**
     Com base no **CONTEXTO DA POLÍTICA RECURSAL** e na **DECISÃO JUDICIAL**, analise o caso e extraia as informações para TODOS os campos solicitados no esquema JSON. Seja extremamente detalhado. Para os campos de fundamentação, justifique sua resposta citando as regras da política. Se uma informação não for encontrada, retorne um valor vazio ("").
     """
@@ -229,14 +246,11 @@ async def rag_ai_processing(job_id: str, form_type: str, file_content: bytes, vs
     try:
         with fitz.open(stream=file_content, filetype="pdf") as doc:
             decision_text = "".join(page.get_text() for page in doc)
-        if not decision_text.strip():
-            raise ValueError("PDF vazio.")
-
+        if not decision_text.strip(): raise ValueError("PDF vazio.")
         query_text = decision_text[:2000]
         relevant_docs = vs.similarity_search(query=query_text, k=3)
         prompt_text = build_rag_prompt_text(decision_text, relevant_docs)
         json_schema = get_form_fields_for_schema(form_type)
-
         payload = {
             "contents": [{"parts": [{"text": prompt_text}]}],
             "generationConfig": {
@@ -244,20 +258,16 @@ async def rag_ai_processing(job_id: str, form_type: str, file_content: bytes, vs
                 "responseSchema": {"type": "OBJECT", "properties": json_schema}
             }
         }
-
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(GEMINI_API_URL, json=payload)
             response.raise_for_status()
-
         result = response.json()
-        
         if 'candidates' in result and result['candidates']:
             extracted_data = json.loads(result['candidates'][0]['content']['parts'][0]['text'])
             jobs[job_id]["status"] = "ready"
             jobs[job_id]["data"] = extracted_data
         else:
             raise ValueError(f"Resposta inesperada da API Gemini: {result}")
-
     except Exception as e:
         print(f"Erro no processamento RAG do trabalho {job_id}: {e}")
         jobs[job_id]["status"] = "failed"
