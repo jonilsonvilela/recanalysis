@@ -11,6 +11,7 @@ import pickle
 import sqlite3
 import datetime
 import requests
+from pydantic import BaseModel
 from functools import partial
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -128,22 +129,20 @@ def get_analysis_status(job_id: str):
         raise HTTPException(status_code=404, detail="Trabalho não encontrado.")
     return {"job_id": job_id, "status": job["status"], "data": job["data"]}
 
+# COLE ESTE NOVO BLOCO NO LUGAR DO ANTIGO
 @app.post("/api/v1/generate")
-async def generate_documents(request: GenerationRequest):
+def generate_documents(request: GenerationRequest): # <-- REMOVIDO O 'async'
     job = jobs.get(request.job_id)
     if not job or job["status"] != "ready":
         raise HTTPException(status_code=400, detail="O trabalho não está pronto para geração.")
 
-    # --- Lógica de Feedback ---
+    # --- Lógica de Feedback (sem alterações) ---
     if request.original_data != request.form_data:
         try:
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute(
-                """
-                INSERT INTO feedback (timestamp, form_type, original_response, corrected_response)
-                VALUES (?, ?, ?, ?)
-                """,
+                "INSERT INTO feedback (timestamp, form_type, original_response, corrected_response) VALUES (?, ?, ?, ?)",
                 (
                     datetime.datetime.now().isoformat(),
                     job["form_type"],
@@ -156,19 +155,14 @@ async def generate_documents(request: GenerationRequest):
             print("Correção do utilizador guardada na base de dados de feedback.")
         except Exception as e:
             print(f"ERRO ao guardar feedback na base de dados: {e}")
-    # --- Fim da Lógica de Feedback ---
 
     payload = {"form_type": job["form_type"], "form_data": request.form_data}
+    url = f"{GENERATOR_SERVICE_URL}/api/v1/generate-document"
 
     try:
-        # Cria uma função parcial para a chamada de rede
-        blocking_request = partial(requests.post, f"{GENERATOR_SERVICE_URL}/api/v1/generate-document", json=payload, timeout=90.0)
-
-        # Executa a chamada de rede numa thread separada para não bloquear o loop asyncio
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, blocking_request)
-
-        response.raise_for_status() # Lança um erro para respostas >= 400
+        # Chamada síncrona direta. Simples e robusta.
+        response = requests.post(url, json=payload, timeout=90.0)
+        response.raise_for_status()
 
         result = response.json()
         base_download_url = f"{GENERATOR_SERVICE_URL}/download"
@@ -178,11 +172,9 @@ async def generate_documents(request: GenerationRequest):
             "pdf_url": f"{base_download_url}/{result['pdf_filename']}"
         }
     except requests.exceptions.RequestException as e:
-        # Captura erros de rede do 'requests' (ex: falha de conexão, timeout)
-        raise HTTPException(status_code=503, detail=f"Não foi possível conectar ao serviço de geração de documentos: {e}")
+        raise HTTPException(status_code=503, detail=f"Não foi possível conectar ao serviço de geração: {e}")
     except Exception as e:
-        # Captura outros erros, incluindo os de 'raise_for_status'
-         raise HTTPException(status_code=500, detail=f"Erro do serviço de geração de documentos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro inesperado no serviço de geração: {str(e)}")
 
 # --- Lógica de Processamento de IA com RAG (Esquema v2.0 - Sem alterações) ---
 def get_form_fields_for_schema(form_type: str) -> Dict[str, Any]:

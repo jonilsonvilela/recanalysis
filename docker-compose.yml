@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
-    # O volume geral foi removido para garantir a estabilidade do ambiente do contentor.
-    # As alterações no código exigirão uma nova construção da imagem.
+    volumes: # <-- ADICIONE ESTA LINHA
+      - .:/app # <-- E ESTA LINHA
     env_file:
       - .env
 
