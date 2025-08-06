@@ -32,3 +32,5 @@ output/
 vector_store.pkl
 
 .pdf
+
+node_modules/
