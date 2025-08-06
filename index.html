@@ -1,518 +1,907 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>recANALYSIS</title>
+    <link rel="icon" type="image/png" href="favicon.png" />
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f0f2f5;
+      }
+      .form-section {
+        display: none;
+      }
+      .form-group-title {
+        font-size: 1.125rem; /* 18px */
+        font-weight: 600;
+        color: #1f2937; /* gray-800 */
+        border-bottom: 2px solid #e5e7eb; /* gray-200 */
+        padding-bottom: 0.5rem;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+      }
+      .spinner {
+        border-top-color: transparent;
+        width: 1rem;
+        height: 1rem;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
-        .form-section {
-            display: none;
+      }
+      .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
         }
-        .form-group-title {
-            font-size: 1.125rem; /* 18px */
-            font-weight: 600;
-            color: #1f2937; /* gray-800 */
-            border-bottom: 2px solid #e5e7eb; /* gray-200 */
-            padding-bottom: 0.5rem;
-            margin-top: 1.5rem;
-            margin-bottom: 1rem;
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
-        .spinner {
-            border-top-color: transparent;
-            width: 1rem;
-            height: 1rem;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .toast {
-            visibility: hidden;
-            min-width: 250px;
-            max-width: 90%;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 8px;
-            padding: 16px;
-            position: fixed;
-            z-index: 100;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 30px;
-            font-size: 17px;
-            opacity: 0;
-            transition: visibility 0s, opacity 0.5s linear;
-        }
-        .toast.show {
-            visibility: visible;
-            opacity: 1;
-        }
+      }
+      .toast {
+        visibility: hidden;
+        min-width: 250px;
+        max-width: 90%;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 16px;
+        position: fixed;
+        z-index: 100;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 30px;
+        font-size: 17px;
+        opacity: 0;
+        transition: visibility 0s, opacity 0.5s linear;
+      }
+      .toast.show {
+        visibility: visible;
+        opacity: 1;
+      }
     </style>
-</head>
-<body class="flex items-center justify-center min-h-screen">
+  </head>
+  <body class="flex items-center justify-center min-h-screen">
+    <header
+      class="bg-gray-800 shadow-lg w-full py-3 px-8 fixed top-0 left-0 z-50"
+    >
+      <img src="logo (1).png" alt="Logo" class="h-10" />
+    </header>
     <div class="container mx-auto p-4 lg:p-8 max-w-5xl">
-        <div class="bg-white rounded-2xl shadow-xl p-8">
-            <header class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-gray-800">rec<span class="text-blue-600">ANALYSIS</span></h1>
-                <p class="text-gray-500 mt-2">Seu assistente inteligente para análise de decisões judiciais.</p>
-            </header>
+      <div class="bg-white rounded-2xl shadow-xl p-8">
+        <header class="text-center mb-8">
+          <h1 class="text-4xl font-bold text-gray-800">
+            rec<span class="text-blue-600">ANALYSIS</span>
+          </h1>
+          <p class="text-gray-500 mt-2">
+            Seu assistente inteligente para análise de decisões judiciais.
+          </p>
+        </header>
 
-            <main>
-                <!-- ETAPA 1: UPLOAD E SELEÇÃO -->
-                <div id="step1" class="fade-in">
-                    <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">1. Iniciar Análise</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="flex flex-col">
-                            <label for="pdfUpload" class="mb-2 font-semibold text-gray-600">1.1. Faça o upload da decisão (PDF):</label>
-                            <div id="dropzone" class="flex justify-center items-center w-full h-32 px-6 transition bg-white border-2 border-gray-300 border-dashed rounded-lg appearance-none cursor-pointer hover:border-gray-400 focus:outline-none">
-                                <span class="flex items-center space-x-2">
-                                    <i class="fas fa-cloud-upload-alt text-gray-500"></i>
-                                    <span id="dropzone-text" class="font-medium text-gray-600">Arraste o arquivo ou <span class="text-blue-600">clique para selecionar</span></span>
-                                </span>
-                                <input type="file" id="pdfUpload" class="hidden" accept=".pdf">
-                            </div>
-                            <p id="fileName" class="text-sm text-gray-500 mt-2"></p>
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="mb-2 font-semibold text-gray-600">1.2. Escolha o tipo de formulário:</label>
-                            <div class="space-y-2">
-                                <label for="dispensa" class="flex items-center p-3 w-full bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer border border-gray-200">
-                                    <input type="radio" id="dispensa" name="formType" value="dispensa" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                    <span class="ml-3 text-sm font-medium text-gray-700">Súmula de Dispensa de Recurso</span>
-                                </label>
-                                <label for="autodispensa" class="flex items-center p-3 w-full bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer border border-gray-200">
-                                    <input type="radio" id="autodispensa" name="formType" value="autodispensa" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                    <span class="ml-3 text-sm font-medium text-gray-700">Súmula de Autodispensa de Recurso</span>
-                                </label>
-                                <label for="autorizacao" class="flex items-center p-3 w-full bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer border border-gray-200">
-                                    <input type="radio" id="autorizacao" name="formType" value="autorizacao" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                    <span class="ml-3 text-sm font-medium text-gray-700">Súmula de Autorização para Interposição</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-8 text-center">
-                        <button id="executeBtn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center mx-auto" disabled>
-                            <span id="btn-text">Executar Análise</span>
-                            <div id="btn-spinner" class="spinner border-2 border-white rounded-full ml-2" style="display: none;"></div>
-                        </button>
-                    </div>
+        <main>
+          <!-- ETAPA 1: UPLOAD E SELEÇÃO -->
+          <div id="step1" class="fade-in">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">
+              1. Iniciar Análise
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div class="flex flex-col">
+                <label for="pdfUpload" class="mb-2 font-semibold text-gray-600"
+                  >1.1. Faça o upload da decisão (PDF):</label
+                >
+                <div
+                  id="dropzone"
+                  class="flex justify-center items-center w-full h-32 px-6 transition bg-white border-2 border-gray-300 border-dashed rounded-lg appearance-none cursor-pointer hover:border-gray-400 focus:outline-none"
+                >
+                  <span class="flex items-center space-x-2">
+                    <i class="fas fa-cloud-upload-alt text-gray-500"></i>
+                    <span id="dropzone-text" class="font-medium text-gray-600"
+                      >Arraste o arquivo ou
+                      <span class="text-blue-600"
+                        >clique para selecionar</span
+                      ></span
+                    >
+                  </span>
+                  <input
+                    type="file"
+                    id="pdfUpload"
+                    class="hidden"
+                    accept=".pdf"
+                  />
                 </div>
+                <p id="fileName" class="text-sm text-gray-500 mt-2"></p>
+              </div>
+              <div class="flex flex-col">
+                <label class="mb-2 font-semibold text-gray-600"
+                  >1.2. Escolha o tipo de formulário:</label
+                >
+                <div class="space-y-2">
+                  <label
+                    for="dispensa"
+                    class="flex items-center p-3 w-full bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer border border-gray-200"
+                  >
+                    <input
+                      type="radio"
+                      id="dispensa"
+                      name="formType"
+                      value="dispensa"
+                      class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span class="ml-3 text-sm font-medium text-gray-700"
+                      >Súmula de Dispensa de Recurso</span
+                    >
+                  </label>
+                  <label
+                    for="autodispensa"
+                    class="flex items-center p-3 w-full bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer border border-gray-200"
+                  >
+                    <input
+                      type="radio"
+                      id="autodispensa"
+                      name="formType"
+                      value="autodispensa"
+                      class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span class="ml-3 text-sm font-medium text-gray-700"
+                      >Súmula de Autodispensa de Recurso</span
+                    >
+                  </label>
+                  <label
+                    for="autorizacao"
+                    class="flex items-center p-3 w-full bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer border border-gray-200"
+                  >
+                    <input
+                      type="radio"
+                      id="autorizacao"
+                      name="formType"
+                      value="autorizacao"
+                      class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span class="ml-3 text-sm font-medium text-gray-700"
+                      >Súmula de Autorização para Interposição</span
+                    >
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="mt-8 text-center">
+              <button
+                id="executeBtn"
+                class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                disabled
+              >
+                <span id="btn-text">Executar Análise</span>
+                <div
+                  id="btn-spinner"
+                  class="spinner border-2 border-white rounded-full ml-2"
+                  style="display: none"
+                ></div>
+              </button>
+            </div>
+          </div>
 
-                <!-- ETAPA 2: ANÁLISE E VALIDAÇÃO -->
-                <div id="step2" class="mt-10 form-section fade-in">
-                    <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">2. Validar Preenchimento</h2>
-                    <p class="text-gray-500 mb-6">Revise e ajuste os campos preenchidos pela IA. Suas correções ajudam a aprimorar o sistema.</p>
-                    <div id="formContainer" class="space-y-4"></div>
-                    <div class="mt-8 flex justify-end space-x-4">
-                         <button id="resetBtn" class="bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 transition duration-300">
-                            <i class="fas fa-arrow-left mr-2"></i> Voltar
-                        </button>
-                        <button id="confirmBtn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center">
-                            <span id="confirm-btn-text">Confirmar e Gerar</span>
-                            <div id="confirm-btn-spinner" class="spinner border-2 border-white rounded-full ml-2" style="display: none;"></div>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- ETAPA 3: DOWNLOAD -->
-                <div id="step3" class="mt-10 text-center form-section fade-in">
-                    <h2 class="text-2xl font-semibold text-gray-700 mb-4">Análise Concluída!</h2>
-                    <p class="text-gray-500 mb-6">Seu documento foi gerado com sucesso. Faça o download nos formatos desejados.</p>
-                    <div class="flex justify-center items-center flex-wrap gap-4">
-                        <a id="downloadDoc" href="#" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 flex items-center space-x-2" download>
-                           <i class="fas fa-file-word"></i> <span>Baixar .DOCX</span>
-                        </a>
-                         <a id="downloadPdf" href="#" class="bg-red-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-700 transition duration-300 flex items-center space-x-2" download>
-                           <i class="fas fa-file-pdf"></i> <span>Baixar .PDF</span>
-                        </a>
-                    </div>
-                    <div class="mt-8">
-                        <button id="newAnalysisBtn" class="text-blue-600 font-semibold hover:underline">
-                           <i class="fas fa-sync-alt mr-2"></i> Iniciar Nova Análise
-                        </button>
-                    </div>
-                </div>
-            </main>
-        </div>
-        <footer class="text-center mt-4">
-            <p class="text-sm text-gray-500">&copy; 2025 recANALYSIS. Todos os direitos reservados.</p>
-        </footer>
+          <!-- ETAPA 2: ANÁLISE E VALIDAÇÃO -->
+          <div id="step2" class="mt-10 form-section fade-in">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">
+              2. Validar Preenchimento
+            </h2>
+            <p class="text-gray-500 mb-6">
+              Revise e ajuste os campos preenchidos pela IA. Suas correções
+              ajudam a aprimorar o sistema.
+            </p>
+            <div id="formContainer" class="space-y-4"></div>
+            <div class="mt-8 flex justify-end space-x-4">
+              <button
+                id="resetBtn"
+                class="bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 transition duration-300"
+              >
+                <i class="fas fa-arrow-left mr-2"></i> Voltar
+              </button>
+              <button
+                id="confirmBtn"
+                class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center"
+              >
+                <span id="confirm-btn-text">Confirmar e Gerar</span>
+                <div
+                  id="confirm-btn-spinner"
+                  class="spinner border-2 border-white rounded-full ml-2"
+                  style="display: none"
+                ></div>
+              </button>
+            </div>
+          </div>
+
+          <!-- ETAPA 3: DOWNLOAD -->
+          <div id="step3" class="mt-10 text-center form-section fade-in">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">
+              Análise Concluída!
+            </h2>
+            <p class="text-gray-500 mb-6">
+              Seu documento foi gerado com sucesso. Faça o download nos formatos
+              desejados.
+            </p>
+            <div class="flex justify-center items-center flex-wrap gap-4">
+              <a
+                id="downloadDoc"
+                href="#"
+                class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 flex items-center space-x-2"
+                download
+              >
+                <i class="fas fa-file-word"></i> <span>Baixar .DOCX</span>
+              </a>
+              <a
+                id="downloadPdf"
+                href="#"
+                class="bg-red-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-700 transition duration-300 flex items-center space-x-2"
+                download
+              >
+                <i class="fas fa-file-pdf"></i> <span>Baixar .PDF</span>
+              </a>
+            </div>
+            <div class="mt-8">
+              <button
+                id="newAnalysisBtn"
+                class="text-blue-600 font-semibold hover:underline"
+              >
+                <i class="fas fa-sync-alt mr-2"></i> Iniciar Nova Análise
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+      <footer class="text-center mt-4">
+        <p class="text-sm text-gray-500">
+          &copy; 2025 recANALYSIS. Todos os direitos reservados.
+        </p>
+      </footer>
     </div>
-    
+
     <div id="toast" class="toast"></div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- Constantes e Variáveis de Estado ---
-            const API_BASE_URL = 'http://127.0.0.1:8000'; 
-            const POLLING_INTERVAL = 2000;
+      document.addEventListener("DOMContentLoaded", () => {
+        // --- Constantes e Variáveis de Estado ---
+        const API_BASE_URL = "http://127.0.0.1:8000";
+        const POLLING_INTERVAL = 2000;
 
-            // Elementos da UI
-            const step1 = document.getElementById('step1');
-            const step2 = document.getElementById('step2');
-            const step3 = document.getElementById('step3');
-            const pdfUpload = document.getElementById('pdfUpload');
-            const dropzone = document.getElementById('dropzone');
-            const dropzoneText = document.getElementById('dropzone-text');
-            const fileNameDisplay = document.getElementById('fileName');
-            const formTypeRadios = document.querySelectorAll('input[name="formType"]');
-            const executeBtn = document.getElementById('executeBtn');
-            const btnText = document.getElementById('btn-text');
-            const btnSpinner = document.getElementById('btn-spinner');
-            const formContainer = document.getElementById('formContainer');
-            const confirmBtn = document.getElementById('confirmBtn');
-            const confirmBtnText = document.getElementById('confirm-btn-text');
-            const confirmBtnSpinner = document.getElementById('confirm-btn-spinner');
-            const resetBtn = document.getElementById('resetBtn');
-            const downloadDoc = document.getElementById('downloadDoc');
-            const downloadPdf = document.getElementById('downloadPdf');
-            const newAnalysisBtn = document.getElementById('newAnalysisBtn');
-            const toast = document.getElementById('toast');
+        // Elementos da UI
+        const step1 = document.getElementById("step1");
+        const step2 = document.getElementById("step2");
+        const step3 = document.getElementById("step3");
+        const pdfUpload = document.getElementById("pdfUpload");
+        const dropzone = document.getElementById("dropzone");
+        const dropzoneText = document.getElementById("dropzone-text");
+        const fileNameDisplay = document.getElementById("fileName");
+        const formTypeRadios = document.querySelectorAll(
+          'input[name="formType"]'
+        );
+        const executeBtn = document.getElementById("executeBtn");
+        const btnText = document.getElementById("btn-text");
+        const btnSpinner = document.getElementById("btn-spinner");
+        const formContainer = document.getElementById("formContainer");
+        const confirmBtn = document.getElementById("confirmBtn");
+        const confirmBtnText = document.getElementById("confirm-btn-text");
+        const confirmBtnSpinner = document.getElementById(
+          "confirm-btn-spinner"
+        );
+        const resetBtn = document.getElementById("resetBtn");
+        const downloadDoc = document.getElementById("downloadDoc");
+        const downloadPdf = document.getElementById("downloadPdf");
+        const newAnalysisBtn = document.getElementById("newAnalysisBtn");
+        const toast = document.getElementById("toast");
 
-            let uploadedFile = null;
-            let selectedFormType = null;
-            let currentJobId = null;
-            let pollingId = null;
-            let originalIAData = null; // **NOVO: Variável para guardar a resposta original da IA**
+        let uploadedFile = null;
+        let selectedFormType = null;
+        let currentJobId = null;
+        let pollingId = null;
+        let originalIAData = null; // Variável para guardar a resposta original da IA**
+        let ragContextForFeedback = null; // Variável para guardar o contexto do RAG**
 
-            // --- Lógica de Validação e Estado ---
-            function checkFormState() {
-                executeBtn.disabled = !(uploadedFile && selectedFormType);
-            }
+        // --- Lógica de Validação e Estado ---
+        function checkFormState() {
+          executeBtn.disabled = !(uploadedFile && selectedFormType);
+        }
 
-            // --- Handlers de Eventos ---
-            dropzone.addEventListener('click', () => pdfUpload.click());
-            dropzone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('border-blue-500'); });
-            dropzone.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('border-blue-500'); });
-            dropzone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropzone.classList.remove('border-blue-500');
-                if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
-            });
-            pdfUpload.addEventListener('change', (e) => { if (e.target.files.length > 0) handleFileUpload(e.target.files[0]); });
-            formTypeRadios.forEach(radio => radio.addEventListener('change', (e) => { selectedFormType = e.target.value; checkFormState(); }));
-
-            executeBtn.addEventListener('click', handleExecuteAnalysis);
-            confirmBtn.addEventListener('click', handleConfirm);
-            resetBtn.addEventListener('click', resetToStep1);
-            newAnalysisBtn.addEventListener('click', resetToStep1);
-
-            // --- Funções Principais ---
-            function handleFileUpload(file) {
-                if (file && file.type === "application/pdf") {
-                    uploadedFile = file;
-                    fileNameDisplay.textContent = `Arquivo selecionado: ${file.name}`;
-                    dropzoneText.innerHTML = `Arquivo: <span class="font-bold text-green-600">${file.name}</span>`;
-                    checkFormState();
-                } else {
-                    showToast("Por favor, selecione um arquivo PDF.", "error");
-                    uploadedFile = null;
-                    fileNameDisplay.textContent = "";
-                    dropzoneText.innerHTML = `Arraste o arquivo ou <span class="text-blue-600">clique para selecionar</span>`;
-                    checkFormState();
-                }
-            }
-            
-            async function handleExecuteAnalysis() {
-                if (!uploadedFile || !selectedFormType) return;
-                setLoading(true, "Analisando...");
-                const formData = new FormData();
-                formData.append('file', uploadedFile);
-                formData.append('form_type', selectedFormType);
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/analysis`, { method: 'POST', body: formData });
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`Erro na API (${response.status}): ${errorText || response.statusText}`);
-                    }
-                    const result = await response.json();
-                    currentJobId = result.job_id;
-                    showToast("Análise iniciada. Aguardando resultados...", "info");
-                    pollingId = setInterval(checkJobStatus, POLLING_INTERVAL);
-                } catch (error) {
-                    console.error("Erro ao iniciar análise:", error);
-                    const detailedError = "Erro de comunicação. Verifique se o servidor backend (main.py) está a correr na porta 8000 e se não há bloqueios de firewall ou CORS.";
-                    showToast(detailedError, "error", 8000);
-                    setLoading(false);
-                }
-            }
-
-            async function checkJobStatus() {
-                if (!currentJobId) return;
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/analysis/${currentJobId}/status`);
-                    if (!response.ok) throw new Error('Falha ao buscar status do trabalho.');
-                    const result = await response.json();
-                    if (result.status === 'ready') {
-                        clearInterval(pollingId);
-                        pollingId = null;
-                        
-                        // **NOVO: Guarda a resposta original da IA**
-                        originalIAData = { ...result.data }; 
-
-                        showToast("Análise concluída! Validando dados...", "success");
-                        populateForm(result.data);
-                        step1.style.display = 'none';
-                        step2.style.display = 'block';
-                        setLoading(false);
-                    } else if (result.status === 'failed') {
-                        clearInterval(pollingId);
-                        pollingId = null;
-                        showToast(`A análise falhou: ${result.data?.error || 'Erro desconhecido'}.`, "error", 8000);
-                        setLoading(false);
-                    }
-                } catch (error) {
-                    console.error("Erro no polling:", error);
-                    clearInterval(pollingId);
-                    pollingId = null;
-                    showToast("Erro ao verificar status. O servidor pode ter parado.", "error", 8000);
-                    setLoading(false);
-                }
-            }
-            
-            function populateForm(data) {
-                const fieldGroups = getFormFields(selectedFormType);
-                formContainer.innerHTML = '';
-                fieldGroups.forEach(group => {
-                    formContainer.innerHTML += `<h3 class="form-group-title">${group.title}</h3>`;
-                    const gridDiv = document.createElement('div');
-                    gridDiv.className = 'grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4';
-                    
-                    group.fields.forEach(field => {
-                        let value = data[field.key] || '';
-                        const fieldId = `field-${field.key}`;
-                        let fieldHtml;
-                        let isReadOnly = false;
-
-                        if (field.key === 'escritorio_advogado_contato') {
-                            value = 'MARCOS DELLI RIBEIRO RODRIGUES';
-                            isReadOnly = true;
-                        }
-
-                        const container = document.createElement('div');
-                        if (field.span === 2) container.className = 'md:col-span-2';
-                        
-                        const readOnlyClass = isReadOnly ? 'bg-gray-100 cursor-not-allowed' : '';
-                        const readOnlyAttr = isReadOnly ? 'readonly' : '';
-
-                        if (field.type === 'textarea') {
-                            fieldHtml = `<div class="flex flex-col"><label for="${fieldId}" class="mb-1 font-medium text-gray-600">${field.label}:</label><textarea id="${fieldId}" rows="${field.rows || 4}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${readOnlyClass}" ${readOnlyAttr}>${value}</textarea></div>`;
-                        } else {
-                            fieldHtml = `<div class="flex flex-col"><label for="${fieldId}" class="mb-1 font-medium text-gray-600">${field.label}:</label><input type="text" id="${fieldId}" value="${value}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${readOnlyClass}" ${readOnlyAttr}></div>`;
-                        }
-                        container.innerHTML = fieldHtml;
-                        gridDiv.appendChild(container);
-                    });
-                    formContainer.appendChild(gridDiv);
-                });
-            }
-
-            async function handleConfirm() {
-                setConfirmLoading(true);
-                const fields = getFormFields(selectedFormType).flatMap(group => group.fields);
-                const correctedFormData = {};
-                fields.forEach(field => {
-                    const element = document.getElementById(`field-${field.key}`);
-                    if (element) correctedFormData[field.key] = element.value;
-                });
-
-                try {
-                    // **NOVO: Envia os dados originais e os corrigidos**
-                    const payload = {
-                        job_id: currentJobId,
-                        form_data: correctedFormData,
-                        original_data: originalIAData 
-                    };
-
-                    const response = await fetch(`${API_BASE_URL}/api/v1/generate`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                         const errorData = await response.json();
-                         throw new Error(errorData.detail || 'Falha ao gerar documentos.');
-                    }
-                    const result = await response.json();
-                    
-                    downloadDoc.href = result.docx_url;
-                    downloadPdf.href = result.pdf_url;
-                    
-                    showToast(result.message, "success");
-                    step2.style.display = 'none';
-                    step3.style.display = 'block';
-                } catch(error) {
-                    console.error("Erro na geração:", error);
-                    showToast(`Erro ao gerar documentos: ${error.message}. Verifique o serviço de geração (generator_service.py).`, "error", 8000);
-                } finally {
-                    setConfirmLoading(false);
-                }
-            }
-
-            function resetToStep1() {
-                if (pollingId) { clearInterval(pollingId); pollingId = null; }
-                step1.style.display = 'block';
-                step2.style.display = 'none';
-                step3.style.display = 'none';
-                uploadedFile = null;
-                selectedFormType = null;
-                currentJobId = null;
-                originalIAData = null; // **NOVO: Limpa os dados originais**
-                pdfUpload.value = '';
-                fileNameDisplay.textContent = '';
-                dropzoneText.innerHTML = `Arraste o arquivo ou <span class="text-blue-600">clique para selecionar</span>`;
-                formTypeRadios.forEach(radio => radio.checked = false);
-                formContainer.innerHTML = '';
-                checkFormState();
-                setLoading(false);
-            }
-
-            // --- Funções Utilitárias ---
-            function setLoading(isLoading, text = "Executar Análise") {
-                btnText.textContent = text;
-                if (isLoading) {
-                    executeBtn.disabled = true;
-                    btnSpinner.style.display = 'block';
-                } else {
-                    checkFormState();
-                    btnSpinner.style.display = 'none';
-                }
-            }
-            
-            function setConfirmLoading(isLoading) {
-                if (isLoading) {
-                    confirmBtn.disabled = true;
-                    confirmBtnText.style.display = 'none';
-                    confirmBtnSpinner.style.display = 'block';
-                } else {
-                    confirmBtn.disabled = false;
-                    confirmBtnText.style.display = 'inline';
-                    confirmBtnSpinner.style.display = 'none';
-                }
-            }
-
-            function showToast(message, type = 'info', duration = 4000) {
-                toast.textContent = message;
-                toast.className = `toast show ${type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-gray-700'}`;
-                setTimeout(() => { toast.className = toast.className.replace("show", ""); }, duration);
-            }
-
-            function getFormFields(formType) {
-                const cabecalho = {
-                    title: 'Cabeçalho',
-                    fields: [
-                        { label: 'Data da Publicação', key: 'data_publicacao', type: 'text' },
-                        { label: 'Prazo Fatal para Interposição', key: 'prazo_fatal', type: 'text' },
-                    ]
-                };
-                if (formType === 'autodispensa') {
-                    cabecalho.fields.push({ label: 'Recurso Objeto da Autodispensa', key: 'recurso_objeto', type: 'text', span: 2 });
-                } else {
-                    cabecalho.fields.push({ label: 'Tipo de Recurso', key: 'tipo_recurso', type: 'text', span: 2 });
-                }
-
-                const dadosProcesso = {
-                    title: '1. Dados do Processo',
-                    fields: [
-                        { label: 'NPJ', key: 'npj', type: 'text' },
-                        { label: 'Contrato/Objeto da Lide', key: 'contrato_lide', type: 'text' },
-                        { label: 'Operação Nº', key: 'operacao_numero', type: 'text' },
-                        { label: 'Data Vencimento Operação', key: 'data_vencimento_operacao', type: 'text' },
-                        { label: 'Autor(es)', key: 'autor_es', type: 'text' },
-                        { label: 'Réu(s)', key: 'reu_s', type: 'text' },
-                        { label: 'Tipo de Ação', key: 'tipo_acao', type: 'text' },
-                        { label: 'Número do Processo', key: 'numero_processo', type: 'text' },
-                        { label: 'Órgão de Tramitação/Vara/Comarca', key: 'orgao_tramitacao', type: 'text', span: 2 },
-                        { label: 'Valor da Causa', key: 'valor_causa', type: 'text' },
-                        { label: 'Valor Pretendido', key: 'valor_pretendido', type: 'text' },
-                        { label: 'Valor da Condenação', key: 'valor_condenacao', type: 'text' },
-                        { label: 'Descrição Sucinta (Fatos, Pedido, Decisão)', key: 'descricao_sucinta', type: 'textarea', span: 2, rows: 6 },
-                        { label: 'Liminar Deferida? (Sim/Não)', key: 'liminar_deferida', type: 'text' },
-                        { label: 'Liminar Cumprida? (Sim/Não)', key: 'liminar_cumprida', type: 'text' },
-                        { label: 'Cominação de Multa? (Sim/Não)', key: 'cominacao_multa', type: 'text' },
-                        { label: 'Valor Diário (Multa)', key: 'multa_valor_diario', type: 'text' },
-                        { label: 'Limite (Multa)', key: 'multa_limite', type: 'text' },
-                    ]
-                };
-
-                const dadosFinais = {
-                    title: 'Dados Finais',
-                    fields: [ { label: 'Escritório/U.F./Advogado', key: 'escritorio_advogado_contato', type: 'textarea', span: 2, rows: 2 } ]
-                };
-
-                if (formType === 'autodispensa') {
-                    const analiseAutodispensa = {
-                        title: '2. Análise da Autodispensa',
-                        fields: [
-                            { label: 'Existe Litispendência ou Coisa Julgada? (Sim/Não)', key: 'litispendencia_coisa_julgada', type: 'text', span: 2 },
-                            { label: 'Decisão Objeto da Autodispensa', key: 'decisao_objeto_autodispensa', type: 'textarea', span: 2 },
-                            { label: 'Matéria(s) Discutida(s) no Processo', key: 'materias_discutidas', type: 'textarea', span: 2 },
-                            { label: 'Fundamento da Autodispensa (Item do Manual)', key: 'fundamento_autodispensa', type: 'textarea', span: 2 },
-                            { label: 'Andamento Registrado', key: 'andamento_registrado', type: 'text', span: 2 },
-                        ]
-                    };
-                    const relatorioSucinto = {
-                        title: '3. Relatório Sucinto do Processo',
-                        fields: [
-                            { label: 'Todos os Documentos Anexados? (Sim/Não)', key: 'documentos_anexados_check', type: 'text', span: 2 },
-                            { label: 'Fundamentação (Relatório)', key: 'fundamentacao_relatorio', type: 'textarea', span: 2, rows: 5 },
-                        ]
-                    };
-                    const parecer = {
-                        title: '4. Parecer Fundamentando a Autodispensa',
-                        fields: [ { label: 'Parecer Fundamentado', key: 'parecer_fundamentado_autodispensa', type: 'textarea', span: 2, rows: 6 } ]
-                    };
-                    return [cabecalho, dadosProcesso, analiseAutodispensa, relatorioSucinto, parecer, dadosFinais];
-                }
-
-                if (formType === 'dispensa' || formType === 'autorizacao') {
-                    const defesaBanco = {
-                        title: '2. Defesa do Banco',
-                        fields: [
-                            { label: 'Existe Litispendência ou Coisa Julgada? (Sim/Não)', key: 'litispendencia_coisa_julgada', type: 'text', span: 2 },
-                            { label: 'Foi Solicitado Pedido de Subsídio? (Sim/Não)', key: 'solicitado_subsidio', type: 'text' },
-                            { label: 'Pedido de Subsídio Atendido pelo Banco? (Sim/Não)', key: 'subsidio_atendido', type: 'text' },
-                            { label: 'Descrição do Subsídio Enviado', key: 'subsidio_descricao', type: 'textarea', span: 2 },
-                            { label: 'N° de Rastreamento', key: 'subsidio_rastreamento', type: 'text' },
-                            { label: 'Subsídio Utilizado na Defesa? (Sim/Não)', key: 'subsidio_utilizado_defesa', type: 'text' },
-                            { label: 'Justificativa da Não Utilização do Subsídio', key: 'subsidio_nao_utilizado_justificativa', type: 'textarea', span: 2 },
-                            { label: 'Teses Jurídicas Abordadas na Defesa', key: 'teses_defesa', type: 'textarea', span: 2 },
-                        ]
-                    };
-                    const pedido = {
-                        title: `3. Pedido de ${formType === 'dispensa' ? 'Dispensa' : 'Autorização'} de Recurso`,
-                        fields: [
-                            { label: 'Todos os Documentos Anexados? (Sim/Não)', key: 'documentos_anexados_check', type: 'text', span: 2 },
-                            { label: 'Fundamentação/Circunstâncias', key: formType === 'dispensa' ? 'fundamentacao_dispensa' : 'fundamentacao_autorizacao', type: 'textarea', span: 2, rows: 6 },
-                            { label: 'Há Precedente Sobre a Matéria? (Sim/Não e Nº)', key: 'precedente_materia_julgados', type: 'text', span: 2 },
-                            { label: 'Obrigação de Fazer já Cumprida? (Sim/Não e Descrição)', key: 'obrigacao_fazer_cumprida_descricao', type: 'textarea', span: 2 },
-                            { label: 'Valor das Custas Recursais', key: 'valor_custas_recursais', type: 'text', span: 2 },
-                        ]
-                    };
-                    return [cabecalho, dadosProcesso, defesaBanco, pedido, dadosFinais];
-                }
-                
-                return []; // Default case
-            }
+        // --- Handlers de Eventos ---
+        dropzone.addEventListener("click", () => pdfUpload.click());
+        dropzone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add("border-blue-500");
         });
+        dropzone.addEventListener("dragleave", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove("border-blue-500");
+        });
+        dropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove("border-blue-500");
+          if (e.dataTransfer.files.length > 0)
+            handleFileUpload(e.dataTransfer.files[0]);
+        });
+        pdfUpload.addEventListener("change", (e) => {
+          if (e.target.files.length > 0) handleFileUpload(e.target.files[0]);
+        });
+        formTypeRadios.forEach((radio) =>
+          radio.addEventListener("change", (e) => {
+            selectedFormType = e.target.value;
+            checkFormState();
+          })
+        );
+
+        executeBtn.addEventListener("click", handleExecuteAnalysis);
+        confirmBtn.addEventListener("click", handleConfirm);
+        resetBtn.addEventListener("click", resetToStep1);
+        newAnalysisBtn.addEventListener("click", resetToStep1);
+
+        // --- Funções Principais ---
+        function handleFileUpload(file) {
+          if (file && file.type === "application/pdf") {
+            uploadedFile = file;
+            fileNameDisplay.textContent = `Arquivo selecionado: ${file.name}`;
+            dropzoneText.innerHTML = `Arquivo: <span class="font-bold text-green-600">${file.name}</span>`;
+            checkFormState();
+          } else {
+            showToast("Por favor, selecione um arquivo PDF.", "error");
+            uploadedFile = null;
+            fileNameDisplay.textContent = "";
+            dropzoneText.innerHTML = `Arraste o arquivo ou <span class="text-blue-600">clique para selecionar</span>`;
+            checkFormState();
+          }
+        }
+
+        async function handleExecuteAnalysis() {
+          if (!uploadedFile || !selectedFormType) return;
+          setLoading(true, "Analisando...");
+          const formData = new FormData();
+          formData.append("file", uploadedFile);
+          formData.append("form_type", selectedFormType);
+          try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/analysis`, {
+              method: "POST",
+              body: formData,
+            });
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(
+                `Erro na API (${response.status}): ${
+                  errorText || response.statusText
+                }`
+              );
+            }
+            const result = await response.json();
+            currentJobId = result.job_id;
+            showToast("Análise iniciada. Aguardando resultados...", "info");
+            pollingId = setInterval(checkJobStatus, POLLING_INTERVAL);
+          } catch (error) {
+            console.error("Erro ao iniciar análise:", error);
+            const detailedError =
+              "Erro de comunicação. Verifique se o servidor backend (main.py) está a correr na porta 8000 e se não há bloqueios de firewall ou CORS.";
+            showToast(detailedError, "error", 8000);
+            setLoading(false);
+          }
+        }
+
+        async function checkJobStatus() {
+          if (!currentJobId) return;
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/api/v1/analysis/${currentJobId}/status`
+            );
+            if (!response.ok)
+              throw new Error("Falha ao buscar status do trabalho.");
+            const result = await response.json();
+            if (result.status === "ready") {
+              clearInterval(pollingId);
+              pollingId = null;
+
+              // **NOVO: Guarda a resposta original da IA**
+              originalIAData = { ...result.data };
+              ragContextForFeedback = result.data.rag_context; // Captura o contexto recebido da API
+              delete originalIAData.rag_context; // Limpa o contexto dos dados do formulário para evitar duplicação
+
+              showToast("Análise concluída! Validando dados...", "success");
+              populateForm(result.data);
+              step1.style.display = "none";
+              step2.style.display = "block";
+              setLoading(false);
+            } else if (result.status === "failed") {
+              clearInterval(pollingId);
+              pollingId = null;
+              showToast(
+                `A análise falhou: ${
+                  result.data?.error || "Erro desconhecido"
+                }.`,
+                "error",
+                8000
+              );
+              setLoading(false);
+            }
+          } catch (error) {
+            console.error("Erro no polling:", error);
+            clearInterval(pollingId);
+            pollingId = null;
+            showToast(
+              "Erro ao verificar status. O servidor pode ter parado.",
+              "error",
+              8000
+            );
+            setLoading(false);
+          }
+        }
+
+        function populateForm(data) {
+          const fieldGroups = getFormFields(selectedFormType);
+          formContainer.innerHTML = "";
+          fieldGroups.forEach((group) => {
+            formContainer.innerHTML += `<h3 class="form-group-title">${group.title}</h3>`;
+            const gridDiv = document.createElement("div");
+            gridDiv.className =
+              "grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4";
+
+            group.fields.forEach((field) => {
+              let value = data[field.key] || "";
+              const fieldId = `field-${field.key}`;
+              let fieldHtml;
+              let isReadOnly = false;
+
+              if (field.key === "escritorio_advogado_contato") {
+                value = "MARCOS DELLI RIBEIRO RODRIGUES";
+                isReadOnly = true;
+              }
+
+              const container = document.createElement("div");
+              if (field.span === 2) container.className = "md:col-span-2";
+
+              const readOnlyClass = isReadOnly
+                ? "bg-gray-100 cursor-not-allowed"
+                : "";
+              const readOnlyAttr = isReadOnly ? "readonly" : "";
+
+              let styleClasses =
+                "w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition";
+
+              if (value.includes("Não consta na decisão")) {
+                styleClasses =
+                  "w-full p-2 border border-red-400 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-red-100 text-red-900 font-medium";
+              }
+
+              if (field.type === "textarea") {
+                fieldHtml = `<div class="flex flex-col"><label for="${fieldId}" class="mb-1 font-medium text-gray-600">${
+                  field.label
+                }:</label><textarea id="${fieldId}" rows="${
+                  field.rows || 4
+                }" class="${styleClasses} ${readOnlyClass}" ${readOnlyAttr}>${value}</textarea></div>`;
+              } else {
+                fieldHtml = `<div class="flex flex-col"><label for="${fieldId}" class="mb-1 font-medium text-gray-600">${field.label}:</label><input type="text" id="${fieldId}" value="${value}" class="${styleClasses} ${readOnlyClass}" ${readOnlyAttr}></div>`;
+              }
+              container.innerHTML = fieldHtml;
+              gridDiv.appendChild(container);
+            });
+            formContainer.appendChild(gridDiv);
+          });
+        }
+        async function handleConfirm() {
+          setConfirmLoading(true);
+          const fields = getFormFields(selectedFormType).flatMap(
+            (group) => group.fields
+          );
+          const correctedFormData = {};
+          fields.forEach((field) => {
+            const element = document.getElementById(`field-${field.key}`);
+            if (element) correctedFormData[field.key] = element.value;
+          });
+
+          try {
+          // **NOVO: Envia os dados originais, corrigidos e o contexto RAG**
+          const payload = {
+            job_id: currentJobId,
+            form_data: correctedFormData,
+            original_data: originalIAData,
+            rag_context: ragContextForFeedback // Usa a variável correta que guardamos
+        };
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/generate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.detail || "Falha ao gerar documentos.");
+            }
+            const result = await response.json();
+
+            downloadDoc.href = result.docx_url;
+            downloadPdf.href = result.pdf_url;
+
+            showToast(result.message, "success");
+            step2.style.display = "none";
+            step3.style.display = "block";
+          } catch (error) {
+            console.error("Erro na geração:", error);
+            showToast(
+              `Erro ao gerar documentos: ${error.message}. Verifique o serviço de geração (generator_service.py).`,
+              "error",
+              8000
+            );
+          } finally {
+            setConfirmLoading(false);
+          }
+        }
+
+        function resetToStep1() {
+          if (pollingId) {
+            clearInterval(pollingId);
+            pollingId = null;
+          }
+          step1.style.display = "block";
+          step2.style.display = "none";
+          step3.style.display = "none";
+          uploadedFile = null;
+          selectedFormType = null;
+          currentJobId = null;
+          originalIAData = null; // **NOVO: Limpa os dados originais**
+          ragContextForFeedback = null;
+          pdfUpload.value = "";
+          fileNameDisplay.textContent = "";
+          dropzoneText.innerHTML = `Arraste o arquivo ou <span class="text-blue-600">clique para selecionar</span>`;
+          formTypeRadios.forEach((radio) => (radio.checked = false));
+          formContainer.innerHTML = "";
+          checkFormState();
+          setLoading(false);
+        }
+
+        // --- Funções Utilitárias ---
+        function setLoading(isLoading, text = "Executar Análise") {
+          btnText.textContent = text;
+          if (isLoading) {
+            executeBtn.disabled = true;
+            btnSpinner.style.display = "block";
+          } else {
+            checkFormState();
+            btnSpinner.style.display = "none";
+          }
+        }
+
+        function setConfirmLoading(isLoading) {
+          if (isLoading) {
+            confirmBtn.disabled = true;
+            confirmBtnText.style.display = "none";
+            confirmBtnSpinner.style.display = "block";
+          } else {
+            confirmBtn.disabled = false;
+            confirmBtnText.style.display = "inline";
+            confirmBtnSpinner.style.display = "none";
+          }
+        }
+
+        function showToast(message, type = "info", duration = 4000) {
+          toast.textContent = message;
+          toast.className = `toast show ${
+            type === "error"
+              ? "bg-red-500"
+              : type === "success"
+              ? "bg-green-500"
+              : "bg-gray-700"
+          }`;
+          setTimeout(() => {
+            toast.className = toast.className.replace("show", "");
+          }, duration);
+        }
+
+        function getFormFields(formType) {
+          const cabecalho = {
+            title: "Cabeçalho",
+            fields: [
+              {
+                label: "Data da Publicação",
+                key: "data_publicacao",
+                type: "text",
+              },
+              {
+                label: "Prazo Fatal para Interposição",
+                key: "prazo_fatal",
+                type: "text",
+              },
+            ],
+          };
+          if (formType === "autodispensa") {
+            cabecalho.fields.push({
+              label: "Recurso Objeto da Autodispensa",
+              key: "recurso_objeto",
+              type: "text",
+              span: 2,
+            });
+          } else {
+            cabecalho.fields.push({
+              label: "Tipo de Recurso",
+              key: "tipo_recurso",
+              type: "text",
+              span: 2,
+            });
+          }
+
+          const dadosProcesso = {
+            title: "1. Dados do Processo",
+            fields: [
+              { label: "NPJ", key: "npj", type: "text" },
+              {
+                label: "Contrato/Objeto da Lide",
+                key: "contrato_lide",
+                type: "text",
+              },
+              { label: "Operação Nº", key: "operacao_numero", type: "text" },
+              {
+                label: "Data Vencimento Operação",
+                key: "data_vencimento_operacao",
+                type: "text",
+              },
+              { label: "Autor(es)", key: "autor_es", type: "text" },
+              { label: "Réu(s)", key: "reu_s", type: "text" },
+              { label: "Tipo de Ação", key: "tipo_acao", type: "text" },
+              {
+                label: "Número do Processo",
+                key: "numero_processo",
+                type: "text",
+              },
+              {
+                label: "Órgão de Tramitação/Vara/Comarca",
+                key: "orgao_tramitacao",
+                type: "text",
+                span: 2,
+              },
+              { label: "Valor da Causa", key: "valor_causa", type: "text" },
+              {
+                label: "Valor Pretendido",
+                key: "valor_pretendido",
+                type: "text",
+              },
+              {
+                label: "Valor da Condenação",
+                key: "valor_condenacao",
+                type: "text",
+              },
+              {
+                label: "Descrição Sucinta (Fatos, Pedido, Decisão)",
+                key: "descricao_sucinta",
+                type: "textarea",
+                span: 2,
+                rows: 6,
+              },
+              {
+                label: "Liminar Deferida? (Sim/Não)",
+                key: "liminar_deferida",
+                type: "text",
+              },
+              {
+                label: "Liminar Cumprida? (Sim/Não)",
+                key: "liminar_cumprida",
+                type: "text",
+              },
+              {
+                label: "Cominação de Multa? (Sim/Não)",
+                key: "cominacao_multa",
+                type: "text",
+              },
+              {
+                label: "Valor Diário (Multa)",
+                key: "multa_valor_diario",
+                type: "text",
+              },
+              { label: "Limite (Multa)", key: "multa_limite", type: "text" },
+            ],
+          };
+
+          const dadosFinais = {
+            title: "Dados Finais",
+            fields: [
+              {
+                label: "Escritório/U.F./Advogado",
+                key: "escritorio_advogado_contato",
+                type: "textarea",
+                span: 2,
+                rows: 2,
+              },
+            ],
+          };
+
+          if (formType === "autodispensa") {
+            const analiseAutodispensa = {
+              title: "2. Análise da Autodispensa",
+              fields: [
+                {
+                  label: "Existe Litispendência ou Coisa Julgada? (Sim/Não)",
+                  key: "litispendencia_coisa_julgada",
+                  type: "text",
+                  span: 2,
+                },
+                {
+                  label: "Decisão Objeto da Autodispensa",
+                  key: "decisao_objeto_autodispensa",
+                  type: "textarea",
+                  span: 2,
+                },
+                {
+                  label: "Matéria(s) Discutida(s) no Processo",
+                  key: "materias_discutidas",
+                  type: "textarea",
+                  span: 2,
+                },
+                {
+                  label: "Fundamento da Autodispensa (Item do Manual)",
+                  key: "fundamento_autodispensa",
+                  type: "textarea",
+                  span: 2,
+                },
+                {
+                  label: "Andamento Registrado",
+                  key: "andamento_registrado",
+                  type: "text",
+                  span: 2,
+                },
+              ],
+            };
+            const relatorioSucinto = {
+              title: "3. Relatório Sucinto do Processo",
+              fields: [
+                {
+                  label: "Todos os Documentos Anexados? (Sim/Não)",
+                  key: "documentos_anexados_check",
+                  type: "text",
+                  span: 2,
+                },
+                {
+                  label: "Fundamentação (Relatório)",
+                  key: "fundamentacao_relatorio",
+                  type: "textarea",
+                  span: 2,
+                  rows: 5,
+                },
+              ],
+            };
+            const parecer = {
+              title: "4. Parecer Fundamentando a Autodispensa",
+              fields: [
+                {
+                  label: "Parecer Fundamentado",
+                  key: "parecer_fundamentado_autodispensa",
+                  type: "textarea",
+                  span: 2,
+                  rows: 6,
+                },
+              ],
+            };
+            return [
+              cabecalho,
+              dadosProcesso,
+              analiseAutodispensa,
+              relatorioSucinto,
+              parecer,
+              dadosFinais,
+            ];
+          }
+
+          if (formType === "dispensa" || formType === "autorizacao") {
+            const defesaBanco = {
+              title: "2. Defesa do Banco",
+              fields: [
+                {
+                  label: "Existe Litispendência ou Coisa Julgada? (Sim/Não)",
+                  key: "litispendencia_coisa_julgada",
+                  type: "text",
+                  span: 2,
+                },
+                {
+                  label: "Foi Solicitado Pedido de Subsídio? (Sim/Não)",
+                  key: "solicitado_subsidio",
+                  type: "text",
+                },
+                {
+                  label: "Pedido de Subsídio Atendido pelo Banco? (Sim/Não)",
+                  key: "subsidio_atendido",
+                  type: "text",
+                },
+                {
+                  label: "Descrição do Subsídio Enviado",
+                  key: "subsidio_descricao",
+                  type: "textarea",
+                  span: 2,
+                },
+                {
+                  label: "N° de Rastreamento",
+                  key: "subsidio_rastreamento",
+                  type: "text",
+                },
+                {
+                  label: "Subsídio Utilizado na Defesa? (Sim/Não)",
+                  key: "subsidio_utilizado_defesa",
+                  type: "text",
+                },
+                {
+                  label: "Justificativa da Não Utilização do Subsídio",
+                  key: "subsidio_nao_utilizado_justificativa",
+                  type: "textarea",
+                  span: 2,
+                },
+                {
+                  label: "Teses Jurídicas Abordadas na Defesa",
+                  key: "teses_defesa",
+                  type: "textarea",
+                  span: 2,
+                },
+              ],
+            };
+            const pedido = {
+              title: `3. Pedido de ${
+                formType === "dispensa" ? "Dispensa" : "Autorização"
+              } de Recurso`,
+              fields: [
+                {
+                  label: "Todos os Documentos Anexados? (Sim/Não)",
+                  key: "documentos_anexados_check",
+                  type: "text",
+                  span: 2,
+                },
+                {
+                  label: "Fundamentação/Circunstâncias",
+                  key:
+                    formType === "dispensa"
+                      ? "fundamentacao_dispensa"
+                      : "fundamentacao_autorizacao",
+                  type: "textarea",
+                  span: 2,
+                  rows: 6,
+                },
+                {
+                  label: "Há Precedente Sobre a Matéria? (Sim/Não e Nº)",
+                  key: "precedente_materia_julgados",
+                  type: "text",
+                  span: 2,
+                },
+                {
+                  label:
+                    "Obrigação de Fazer já Cumprida? (Sim/Não e Descrição)",
+                  key: "obrigacao_fazer_cumprida_descricao",
+                  type: "textarea",
+                  span: 2,
+                },
+                {
+                  label: "Valor das Custas Recursais",
+                  key: "valor_custas_recursais",
+                  type: "text",
+                  span: 2,
+                },
+              ],
+            };
+            return [cabecalho, dadosProcesso, defesaBanco, pedido, dadosFinais];
+          }
+
+          return []; // Default case
+        }
+      });
     </script>
-</body>
+  </body>
 </html>

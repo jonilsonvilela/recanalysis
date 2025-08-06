@@ -30,7 +30,7 @@ load_dotenv()
 DB_FILE = "feedback.db"
 
 def init_db():
-    """Cria a tabela de feedback na base de dados se ela não existir."""
+    """Cria a tabela de feedback na base de dados se ela não existir. (v1.8 com rag_context)"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
@@ -38,13 +38,14 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT NOT NULL,
         form_type TEXT NOT NULL,
+        rag_context TEXT,
         original_response TEXT NOT NULL,
         corrected_response TEXT NOT NULL
     )
     """)
     conn.commit()
     conn.close()
-    print(f"Base de dados de feedback '{DB_FILE}' inicializada com sucesso.")
+    print(f"Base de dados de feedback '{DB_FILE}' inicializada com a coluna 'rag_context'.")
 
 # --- Inicialização da Aplicação FastAPI ---
 app = FastAPI(
@@ -104,7 +105,8 @@ class Job(BaseModel):
 class GenerationRequest(BaseModel):
     job_id: str
     form_data: Dict[str, Any]
-    original_data: Dict[str, Any] # Novo campo para o feedback
+    original_data: Dict[str, Any]
+    rag_context: str | None = None # Contexto do RAG usado na geração original
 
 # --- Endpoints da API ---
 
@@ -127,53 +129,50 @@ def get_analysis_status(job_id: str):
     job = jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Trabalho não encontrado.")
-    return {"job_id": job_id, "status": job["status"], "data": job["data"]}
 
-# ####################################################################
-# BLOCO ALTERADO
-# ####################################################################
+    # Anexa o contexto RAG aos dados se o trabalho estiver pronto
+    response_data = job["data"]
+    if job["status"] == "ready" and response_data:
+         response_data["rag_context"] = job.get("rag_context")
+
+    return {"job_id": job_id, "status": job["status"], "data": response_data}
+
 @app.post("/api/v1/generate")
 def generate_documents(request: GenerationRequest):
     job = jobs.get(request.job_id)
     if not job or job["status"] != "ready":
         raise HTTPException(status_code=400, detail="O trabalho não está pronto para geração.")
 
-    # --- Lógica de Feedback ---
+    # --- Lógica de Feedback Enriquecido ---
     if request.original_data != request.form_data:
         try:
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO feedback (timestamp, form_type, original_response, corrected_response) VALUES (?, ?, ?, ?)",
+                "INSERT INTO feedback (timestamp, form_type, rag_context, original_response, corrected_response) VALUES (?, ?, ?, ?, ?)",
                 (
                     datetime.datetime.now().isoformat(),
                     job["form_type"],
+                    request.rag_context, # Salva o contexto do RAG
                     json.dumps(request.original_data),
                     json.dumps(request.form_data)
                 )
             )
             conn.commit()
             conn.close()
-            print("Correção do utilizador guardada na base de dados de feedback.")
+            print("Feedback enriquecido (com contexto RAG) salvo na base de dados.")
         except Exception as e:
             print(f"ERRO ao guardar feedback na base de dados: {e}")
 
+    # --- Lógica de Geração (sem alteração) ---
     payload = {"form_type": job["form_type"], "form_data": request.form_data}
-    
-    # URL para comunicação INTERNA (entre serviços Docker)
     internal_generator_url = f"{GENERATOR_SERVICE_URL}/api/v1/generate-document"
-    
-    # URL para o BROWSER (público)
     public_download_url = "http://127.0.0.1:8001/download"
 
     try:
-        # Usa o URL interno para a chamada
         response = requests.post(internal_generator_url, json=payload, timeout=90.0)
         response.raise_for_status()
-
         result = response.json()
-        
-        # Usa o URL público para criar os links de download
         return {
             "message": result["message"],
             "docx_url": f"{public_download_url}/{result['docx_filename']}",
@@ -183,6 +182,7 @@ def generate_documents(request: GenerationRequest):
         raise HTTPException(status_code=503, detail=f"Não foi possível conectar ao serviço de geração: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro inesperado no serviço de geração: {str(e)}")
+
 
 # --- Lógica de Processamento de IA com RAG (Esquema v2.0 - Sem alterações) ---
 def get_form_fields_for_schema(form_type: str) -> Dict[str, Any]:
@@ -282,9 +282,16 @@ async def rag_ai_processing(job_id: str, form_type: str, file_content: bytes, vs
         with fitz.open(stream=file_content, filetype="pdf") as doc:
             decision_text = "".join(page.get_text() for page in doc)
         if not decision_text.strip(): raise ValueError("PDF vazio.")
+
         query_text = decision_text[:2000]
         relevant_docs = vs.similarity_search(query=query_text, k=3)
+
+        # Captura o contexto para o feedback
+        rag_context_for_feedback = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
+        jobs[job_id]["rag_context"] = rag_context_for_feedback # Armazena no job
+
         prompt_text = build_rag_prompt_text(decision_text, relevant_docs)
+
         json_schema = get_form_fields_for_schema(form_type)
         payload = {
             "contents": [{"parts": [{"text": prompt_text}]}],
