@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
-    volumes: # <-- ADICIONE ESTA LINHA
-      - .:/app # <-- E ESTA LINHA
+    volumes:
+      - .:/app
     env_file:
       - .env
 
@@ -19,3 +19,12 @@ services:
     volumes:
       - ./output:/app/output
       - ./templates:/app/templates
+
+  training:
+    build:
+      context: .
+      dockerfile: Dockerfile.training
+    ports:
+      - "8002:8002"
+    volumes:
+      - .:/app
