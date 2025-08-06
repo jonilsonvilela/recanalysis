@@ -129,14 +129,16 @@ def get_analysis_status(job_id: str):
         raise HTTPException(status_code=404, detail="Trabalho não encontrado.")
     return {"job_id": job_id, "status": job["status"], "data": job["data"]}
 
-# COLE ESTE NOVO BLOCO NO LUGAR DO ANTIGO
+# ####################################################################
+# BLOCO ALTERADO
+# ####################################################################
 @app.post("/api/v1/generate")
-def generate_documents(request: GenerationRequest): # <-- REMOVIDO O 'async'
+def generate_documents(request: GenerationRequest):
     job = jobs.get(request.job_id)
     if not job or job["status"] != "ready":
         raise HTTPException(status_code=400, detail="O trabalho não está pronto para geração.")
 
-    # --- Lógica de Feedback (sem alterações) ---
+    # --- Lógica de Feedback ---
     if request.original_data != request.form_data:
         try:
             conn = sqlite3.connect(DB_FILE)
@@ -157,19 +159,25 @@ def generate_documents(request: GenerationRequest): # <-- REMOVIDO O 'async'
             print(f"ERRO ao guardar feedback na base de dados: {e}")
 
     payload = {"form_type": job["form_type"], "form_data": request.form_data}
-    url = f"{GENERATOR_SERVICE_URL}/api/v1/generate-document"
+    
+    # URL para comunicação INTERNA (entre serviços Docker)
+    internal_generator_url = f"{GENERATOR_SERVICE_URL}/api/v1/generate-document"
+    
+    # URL para o BROWSER (público)
+    public_download_url = "http://127.0.0.1:8001/download"
 
     try:
-        # Chamada síncrona direta. Simples e robusta.
-        response = requests.post(url, json=payload, timeout=90.0)
+        # Usa o URL interno para a chamada
+        response = requests.post(internal_generator_url, json=payload, timeout=90.0)
         response.raise_for_status()
 
         result = response.json()
-        base_download_url = f"{GENERATOR_SERVICE_URL}/download"
+        
+        # Usa o URL público para criar os links de download
         return {
             "message": result["message"],
-            "docx_url": f"{base_download_url}/{result['docx_filename']}",
-            "pdf_url": f"{base_download_url}/{result['pdf_filename']}"
+            "docx_url": f"{public_download_url}/{result['docx_filename']}",
+            "pdf_url": f"{public_download_url}/{result['pdf_filename']}"
         }
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=503, detail=f"Não foi possível conectar ao serviço de geração: {e}")
